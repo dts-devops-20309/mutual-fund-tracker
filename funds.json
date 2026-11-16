@@ -1,9 +1,9 @@
 [
-  {"code": "ICIINF", "scheme_code": 120621, "isin": "INF109K018M4", "amc": "ICICI Prudential", "category": "Sectoral", "name": "ICICI Prudential Infrastructure Fund", "short": "ICICI Infra"},
-  {"code": "BANSC", "scheme_code": 147946, "isin": "INF194KB1AL4", "amc": "Bandhan", "category": "Small Cap", "name": "Bandhan Small Cap Fund", "short": "Bandhan Small"},
-  {"code": "NIPMID", "scheme_code": 118668, "isin": "INF204K01E54", "amc": "Nippon India", "category": "Mid Cap", "name": "Nippon India Growth Mid Cap Fund", "short": "Nippon Mid"},
-  {"code": "HDFMID", "scheme_code": 118989, "isin": "INF179K01XQ0", "amc": "HDFC", "category": "Mid Cap", "name": "HDFC Mid Cap Fund", "short": "HDFC Mid"},
-  {"code": "MOSMID", "scheme_code": 127042, "isin": "INF247L01445", "amc": "Motilal Oswal", "category": "Mid Cap", "name": "Motilal Oswal Midcap Fund", "short": "Motilal Mid"},
-  {"code": "ICILC", "scheme_code": 120586, "isin": "INF109K016L0", "amc": "ICICI Prudential", "category": "Large Cap", "name": "ICICI Prudential Large Cap Fund", "short": "ICICI Large"},
-  {"code": "NIPLC", "scheme_code": 118632, "isin": "INF204K01XI3", "amc": "Nippon India", "category": "Large Cap", "name": "Nippon India Large Cap Fund", "short": "Nippon Large"}
+  {"code": "ICIINF", "scheme_code": 120621, "isin": "INF109K018M4", "amc": "ICICI Prudential", "category": "Sectoral", "name": "ICICI Prudential Infrastructure Fund", "short": "ICICI Infra", "portfolio": {"source": "manual", "title": "ICICI Prudential Infrastructure Fund"}},
+  {"code": "BANSC", "scheme_code": 147946, "isin": "INF194KB1AL4", "amc": "Bandhan", "category": "Small Cap", "name": "Bandhan Small Cap Fund", "short": "Bandhan Small", "portfolio": {"source": "bandhan", "title": "Bandhan Small Cap Fund"}},
+  {"code": "NIPMID", "scheme_code": 118668, "isin": "INF204K01E54", "amc": "Nippon India", "category": "Mid Cap", "name": "Nippon India Growth Mid Cap Fund", "short": "Nippon Mid", "portfolio": {"source": "nippon", "title": "Nippon India Growth Mid Cap Fund"}},
+  {"code": "HDFMID", "scheme_code": 118989, "isin": "INF179K01XQ0", "amc": "HDFC", "category": "Mid Cap", "name": "HDFC Mid Cap Fund", "short": "HDFC Mid", "portfolio": {"source": "manual", "title": "HDFC Mid Cap Fund"}},
+  {"code": "MOSMID", "scheme_code": 127042, "isin": "INF247L01445", "amc": "Motilal Oswal", "category": "Mid Cap", "name": "Motilal Oswal Midcap Fund", "short": "Motilal Mid", "portfolio": {"source": "motilal", "title": "Motilal Oswal Midcap Fund"}},
+  {"code": "ICILC", "scheme_code": 120586, "isin": "INF109K016L0", "amc": "ICICI Prudential", "category": "Large Cap", "name": "ICICI Prudential Large Cap Fund", "short": "ICICI Large", "portfolio": {"source": "manual", "title": "ICICI Prudential Large Cap Fund"}},
+  {"code": "NIPLC", "scheme_code": 118632, "isin": "INF204K01XI3", "amc": "Nippon India", "category": "Large Cap", "name": "Nippon India Large Cap Fund", "short": "Nippon Large", "portfolio": {"source": "nippon", "title": "Nippon India Large Cap Fund"}}
 ]

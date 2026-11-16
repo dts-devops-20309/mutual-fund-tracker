@@ -47,12 +47,13 @@ def main() -> int:
         dates = sorted(series)
         hist = ports.get(f["code"], [])
         out_funds.append({
-            **f,
+            **{k: v for k, v in f.items() if k != "portfolio"},
             "launch": min(series) if series else None,
             "d": dates,
             "v": [series[d] for d in dates],
             "portfolio": slim(hist[0] if hist else None),
             "prev_portfolio": slim(hist[1] if len(hist) > 1 else None),
+            "portfolio_source": (f.get("portfolio") or {}).get("source"),
         })
 
     data = {

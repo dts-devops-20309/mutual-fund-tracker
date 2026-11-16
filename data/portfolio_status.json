@@ -1,0 +1,49 @@
+{
+  "run_at": "2026-11-16T15:45:18+00:00",
+  "funds": {
+    "ICIINF": {
+      "source": "manual",
+      "note": "waiting for data/import/portfolio/ICIINF.xlsx"
+    },
+    "BANSC": {
+      "source": "bandhan",
+      "url": "https://storage.googleapis.com/nonprod-static-assets-121to59kaawfgfi7bol/2026/11/848512f0-bandhan-small-cap-fund-31-oct-26.xlsx",
+      "month": "2026-10",
+      "as_of": "2026-10-31",
+      "sheet": "IDF271",
+      "stocks": 267
+    },
+    "NIPMID": {
+      "source": "nippon",
+      "url": "https://mf.nipponindiaim.com/InvestorServices/FactsheetsDocuments/NIMF-MONTHLY-PORTFOLIO-31-Oct-26.xls",
+      "month": "2026-10",
+      "as_of": "2026-10-31",
+      "sheet": "GF",
+      "stocks": 100
+    },
+    "HDFMID": {
+      "source": "manual",
+      "note": "waiting for data/import/portfolio/HDFMID.xlsx"
+    },
+    "MOSMID": {
+      "source": "motilal",
+      "url": "https://www.motilaloswalmf.com/content/dam/motilal-mf/downloads/mf/month-end-portfolio/2026/nov/Scheme%20Portfolio%20Details%20October%202026.xlsx",
+      "month": "2026-10",
+      "as_of": "2026-10-31",
+      "sheet": "YO07",
+      "stocks": 31
+    },
+    "ICILC": {
+      "source": "manual",
+      "note": "waiting for data/import/portfolio/ICILC.xlsx"
+    },
+    "NIPLC": {
+      "source": "nippon",
+      "url": "https://mf.nipponindiaim.com/InvestorServices/FactsheetsDocuments/NIMF-MONTHLY-PORTFOLIO-31-Oct-26.xls",
+      "month": "2026-10",
+      "as_of": "2026-10-31",
+      "sheet": "EA",
+      "stocks": 68
+    }
+  }
+}

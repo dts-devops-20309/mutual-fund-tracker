@@ -10,6 +10,8 @@ on:
     paths:
       - "funds.json"
       - "scripts/**"
+      - "requirements.txt"
+      - "data/import/**"
 
 permissions:
   contents: write
@@ -28,10 +30,18 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+          cache: pip
 
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
       - name: Fetch daily NAVs (AMFI + mfapi.in)
         run: python scripts/fetch_nav.py
+
+      - name: Fetch monthly portfolios (fund house disclosures)
+        # One fund house being down must not block the NAV commit.
+        continue-on-error: true
+        run: python scripts/fetch_portfolio.py
 
       - name: Summary
         if: always()
@@ -40,6 +50,10 @@ jobs:
             echo "### NAV"
             echo '```json'
             cat data/nav_status.json 2>/dev/null || echo '{}'
+            echo '```'
+            echo "### Portfolios"
+            echo '```json'
+            cat data/portfolio_status.json 2>/dev/null || echo '{}'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 

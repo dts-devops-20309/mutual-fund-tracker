@@ -446,7 +446,12 @@ function changeList(title, items, fmt) {
 
 function renderPortfolio(f) {
   const p = f.portfolio;
-  if (!p) return `<section class="card"><h2>What the fund invests in</h2><p class="muted">The fund house's monthly portfolio hasn't been collected yet.</p></section>`;
+  if (!p) {
+    const manual = f.portfolio_source === "manual";
+    return `<section class="card"><h2>What the fund invests in</h2><p class="muted">${manual
+      ? `${esc(f.amc)} blocks automated downloads of its monthly portfolio, so this fund's holdings are added by hand: download the latest monthly portfolio from ${esc(f.amc)}'s website and save it in the repository as <code>data/import/portfolio/${esc(f.code)}.xlsx</code>.`
+      : "The fund house's monthly portfolio hasn't been collected yet."}</p></section>`;
+  }
   const mix = Object.entries(p.asset_mix || {}).map(([k, v]) => ({ k: k.replace(/_pct$/, ""), v })).filter((x) => x.v > 0.05);
   const eq = equities(p), top = eq.slice().sort((a, b) => b.pct - a.pct);
   const top10 = top.slice(0, 10), top10Sum = top10.reduce((a, h) => a + h.pct, 0);
@@ -532,6 +537,7 @@ function bindHoldingsTable(f) {
 function renderOverlap(funds) {
   const list = funds.filter((f) => f.portfolio && equities(f.portfolio).length);
   if (list.length < 2) return "";
+  const missing = funds.filter((f) => !list.includes(f));
   const head = list.map((f) => `<th scope="col" title="${esc(f.name)}">${esc(f.short || f.code)}</th>`).join("");
   const body = list.map((a) => `<tr><th scope="row">${esc(a.name)}</th>${list.map((b) => {
     if (a === b) return `<td class="ov-cell self">—</td>`;
@@ -540,7 +546,7 @@ function renderOverlap(funds) {
   }).join("")}</tr>`).join("");
   return `<section class="card">
     <h2>Do my funds own the same stocks?</h2>
-    <p class="muted small" style="margin:0 0 12px">Portfolio overlap from the latest monthly holdings: the share of money two funds have in the same stocks. Above about 40%, owning both adds little variety.</p>
+    <p class="muted small" style="margin:0 0 12px">Portfolio overlap from the latest monthly holdings: the share of money two funds have in the same stocks. Above about 40%, owning both adds little variety.${missing.length ? ` Not shown yet (no holdings on file): ${missing.map((f) => esc(f.short || f.name)).join(", ")}.` : ""}</p>
     <div class="table-scroll"><table class="overlap"><thead><tr><th></th>${head}</tr></thead><tbody>${body}</tbody></table></div>
   </section>`;
 }

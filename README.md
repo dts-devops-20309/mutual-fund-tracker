@@ -1,6 +1,6 @@
 # Mutual Fund Tracker
 
-Nightly NAV collection and a plain-language performance dashboard for 7 Indian mutual funds (Direct Plan, Growth option), tracked since 1 April 2025.
+Nightly NAV collection, monthly holdings and a plain-language performance dashboard for 7 Indian mutual funds (Direct Plan, Growth option), tracked since 1 April 2025.
 
 **Dashboard:** https://mchittineni.github.io/mutual-fund-tracker/
 
@@ -33,6 +33,12 @@ A static page (`site/`, no build tools or dependencies) deployed by [`.github/wo
   - the gain or loss for every day, week, fortnight, month, quarter, half-year and year since April 2025, with the best, worst and average periods, plus a table view.
 
   Half-years and years follow India's financial year (April to March).
+- **Holdings drill-down** (fund page), from the fund house's official monthly portfolio:
+  - the split between shares, bonds and cash, and fund size;
+  - the top 10 stocks, and sectors summed over every holding;
+  - what changed since the previous month: new stocks, stocks fully sold, biggest weight increases and decreases;
+  - a searchable, sortable table of every holding.
+- **"Do my funds own the same stocks?"** (overview): portfolio overlap between each pair of funds.
 
 All returns are computed in the browser from `data/nav/*.csv`.
 
@@ -40,13 +46,15 @@ Build locally: `python scripts/build_site.py && python -m http.server -d _site`
 
 ## What runs
 
-[`.github/workflows/fetch-data.yml`](.github/workflows/fetch-data.yml) runs every night at **00:00 IST** (18:30 UTC), after AMFI publishes the day's NAVs. You can also start it from the Actions tab. It runs [`scripts/fetch_nav.py`](scripts/fetch_nav.py), which:
+[`.github/workflows/fetch-data.yml`](.github/workflows/fetch-data.yml) runs every night at **00:00 IST** (18:30 UTC), after AMFI publishes the day's NAVs. You can also start it from the Actions tab. It:
 
-1. pulls each scheme's full NAV history from mfapi.in, so any missed days fill themselves in;
-2. adds or confirms the latest NAV from AMFI's official daily file. If mfapi.in is down, today's NAV is still recorded;
-3. commits `data/` only when something changed.
+1. **NAVs** ([`scripts/fetch_nav.py`](scripts/fetch_nav.py), standard library only):
+   - pulls each scheme's full history from mfapi.in, so missed days fill themselves in;
+   - adds or confirms the latest NAV from AMFI's official daily file.
+2. **Holdings** ([`scripts/fetch_portfolio.py`](scripts/fetch_portfolio.py)): finds each fund house's latest monthly portfolio file. It downloads the file only when it is new, then parses it with [`scripts/portfolio_parse.py`](scripts/portfolio_parse.py). This step needs `openpyxl` and `xlrd` (`requirements.txt`). A failure here never blocks the NAV update.
+3. Commits `data/` only when something changed.
 
-It uses only the Python standard library and makes 8 HTTP requests a night.
+Fund houses publish the previous month's portfolio within about 10 days of month-end, so holdings move forward once a month.
 
 ## Data sources
 
@@ -54,6 +62,17 @@ It uses only the Python standard library and makes 8 HTTP requests a night.
 |---|---|---|
 | AMFI daily NAV file | `https://portal.amfiindia.com/spages/NAVAll.txt` | Official latest NAV of every scheme in India |
 | mfapi.in | `https://api.mfapi.in/mf/<scheme_code>` | Full daily NAV history per scheme (mirrored from AMFI) |
+| Bandhan MF | `cmsnew.bandhanmutual.com/wp-json/finance-api/v1/posts/fund-information-portfolios` | Link to each scheme's latest monthly portfolio xlsx |
+| Nippon India MF | `mf.nipponindiaim.com/investor-service/downloads/factsheet-portfolio-and-other-disclosures` | Link to the monthly portfolio workbook (all schemes) |
+| Motilal Oswal MF | `www.motilaloswalmf.com/.../api/search-documents.json?category=month end portfolio` | Link to the monthly portfolio workbook (all schemes) |
+
+All of these are the plain, public download links that each site's own disclosure page uses.
+
+**ICICI Prudential and HDFC** block automated requests: bot protection on the file list, and Akamai returns 403 for every page. For their 3 funds (`ICIINF`, `ICILC`, `HDFMID`), add holdings by hand once a month:
+
+1. Download the scheme's monthly portfolio (Excel) from the fund house's *Statutory disclosures → Monthly portfolio* page.
+2. Save it as `data/import/portfolio/<CODE>.xlsx` (or `.xls`). Overwrite last month's file.
+3. Commit and push. The workflow parses it and the dashboard updates. A workbook with every scheme also works: the parser finds the right sheet by the fund name in `funds.json`.
 
 ## Data layout
 
@@ -61,10 +80,9 @@ It uses only the Python standard library and makes 8 HTTP requests a night.
 funds.json               tracked funds (code, AMFI scheme code, ISIN, category)
 data/nav/<CODE>.csv      date,nav – daily history, one row per NAV date
 data/nav_status.json     last run, latest AMFI date, per-fund coverage and staleness
+data/portfolio/<YYYY-MM>.json   parsed holdings per fund for that month (every line, % of fund, sector)
+data/portfolio_status.json      latest month, source file and any error per fund
+data/import/portfolio/<CODE>.xlsx   hand-downloaded portfolios (ICICI, HDFC)
 ```
 
-## Coming next
-
-Holdings drill-down from each fund house's official monthly portfolio disclosure. It will show every stock and sector, what changed since last month, and how much the funds overlap. The dashboard code for it is already in place; the fetcher is not.
-
-*Not investment advice. Past performance does not guarantee future returns. NAV data © AMFI and the respective fund houses, reproduced for personal tracking.*
+*Not investment advice. Past performance does not guarantee future returns. NAV and portfolio data © AMFI and the respective fund houses, reproduced for personal tracking.*
