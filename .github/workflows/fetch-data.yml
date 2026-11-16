@@ -1,0 +1,57 @@
+name: Fetch fund data (nightly)
+
+on:
+  schedule:
+    # 18:30 UTC = 00:00 IST. AMFI publishes the day's NAVs by about 23:00 IST.
+    - cron: "30 18 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "funds.json"
+      - "scripts/**"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fetch-data
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+
+      - name: Fetch daily NAVs (AMFI + mfapi.in)
+        run: python scripts/fetch_nav.py
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### NAV"
+            echo '```json'
+            cat data/nav_status.json 2>/dev/null || echo '{}'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data
+          if git diff --cached --quiet; then
+            echo "No data changes."
+            exit 0
+          fi
+          git commit -m "chore(data): nightly fetch $(date -u +%F)"
+          git pull --rebase --quiet origin "$GITHUB_REF_NAME"
+          git push
