@@ -4,8 +4,9 @@
  * All upstream text is passed through esc() before it is inserted as HTML. */
 "use strict";
 
-const SINCE = "2025-04-01";
-const SINCE_LBL = "Apr '25";
+const SINCE = "2023-01-01"; // start of the analysis window
+const SINCE_SHORT = `Jan '${SINCE.slice(2, 4)}`;   // "Jan '23"
+const SINCE_LONG = `Jan ${SINCE.slice(0, 4)}`;     // "Jan 2023"
 const DAY = 86400000;
 
 // ---------- formatting ----------
@@ -53,7 +54,7 @@ const WINDOWS = [
   { key: "1Y", label: "1 year", base: (f, last) => idxAtOrBefore(f.d, addMonths(last, -12)) },
 ];
 
-/** Base point for "since Apr 2025": last NAV on/before 1 Apr 2025, else the launch NAV. */
+/** Base point for "since SINCE": last NAV on/before SINCE, else the launch NAV. */
 function sinceStart(f) {
   if (!f.d.length) return null;
   const i = idxAtOrBefore(f.d, SINCE);
@@ -96,9 +97,9 @@ const GRANS = [
   { key: "M", label: "Monthly", noun: "month" },
   { key: "Q", label: "Quarterly", noun: "quarter" },
   { key: "H", label: "Half-yearly", noun: "half-year" },
-  { key: "Y", label: "Yearly (FY)", noun: "financial year" },
+  { key: "Y", label: "Yearly", noun: "year" },
 ];
-const FORTNIGHT_ANCHOR = toTs("2025-03-31"); // a Monday
+const FORTNIGHT_ANCHOR = toTs("2023-01-02"); // first Monday of the analysis window
 
 function bucketOf(s, g) {
   const y = s.slice(0, 4), m = +s.slice(5, 7);
@@ -113,17 +114,13 @@ function bucketOf(s, g) {
       return { key: st, label: `${fmtDate(st)} – ${fmtDate(addDays(st, 13))}` };
     }
     case "M": return { key: s.slice(0, 7), label: fmtMonth(s) };
-    // Quarters, halves and years follow India's financial year (April to March).
-    case "Q": { const q = Math.ceil(m / 3); return { key: `${y}-Q${q}`, label: `${MONTHS[(q - 1) * 3]}–${MONTHS[q * 3 - 1]} ${y}` }; }
-    case "H": {
-      const fy = m >= 4 ? +y : +y - 1, h = m >= 4 && m <= 9 ? 1 : 2;
-      return { key: `FY${fy}-H${h}`, label: h === 1 ? `Apr–Sep ${fy}` : `Oct ${fy} – Mar ${fy + 1}` };
-    }
-    default: { const fy = m >= 4 ? +y : +y - 1; return { key: `FY${fy}`, label: `FY ${fy}–${String(fy + 1).slice(2)} (Apr–Mar)` }; }
+    case "Q": { const q = Math.ceil(m / 3); return { key: `${y}-Q${q}`, label: `Q${q} ${y} (${MONTHS[(q - 1) * 3]}–${MONTHS[q * 3 - 1]})` }; }
+    case "H": { const h = m <= 6 ? 1 : 2; return { key: `${y}-H${h}`, label: `${h === 1 ? "Jan–Jun" : "Jul–Dec"} ${y}` }; }
+    default: return { key: y, label: y };
   }
 }
 
-/** Period-by-period returns since Apr 2025 (or launch): each period's closing
+/** Period-by-period returns since SINCE (or launch): each period's closing
  *  NAV vs the previous period's closing NAV. The newest period is "to date". */
 function periodReturns(f, g) {
   const s = sinceStart(f);
@@ -257,7 +254,7 @@ function periodBarChart(node, W, rows, noun) {
   const n = rows.length, slot = iw / n, gap = slot > 6 ? 2 : slot > 3 ? 1 : 0, bw = Math.max(1, slot - gap);
   const every = Math.max(1, Math.ceil(n / Math.max(2, Math.floor(iw / 72))));
   const short = (k) => /^\d{4}-\d{2}-\d{2}$/.test(k) ? fmtDate(k).replace(/ (\d{2})(\d{2})$/, " '$2")
-    : /^\d{4}-\d{2}$/.test(k) ? fmtMonth(k + "-01").replace(/ (\d{2})(\d{2})$/, " '$2") : k.startsWith("FY") ? k.replace(/^FY(\d{2})(\d{2})(-H(\d))?$/, (_, c, yy, h, n) => `FY${yy}${h ? " H" + n : ""}`) : k.replace("-", " ");
+    : /^\d{4}-\d{2}$/.test(k) ? fmtMonth(k + "-01").replace(/ (\d{2})(\d{2})$/, " '$2") : k.replace("-", " ");
   rows.forEach((r, i) => {
     const x = m.l + i * slot + gap / 2;
     el("path", { class: r.r >= 0 ? "b-pos" : "b-neg", d: barPath(x, bw, Y(0), Y(r.r)) }, svg);
@@ -269,8 +266,8 @@ function periodBarChart(node, W, rows, noun) {
 
 // ---------- app state ----------
 let DATA = null;
-const state = { overviewWindow: "1Y", typeFilter: "All", sort: { key: "1Y", dir: -1 }, navRange: "S", gran: "M" };
-const fundType = (f) => f.category || "—";
+const state = { overviewWindow: "1Y", typeFilter: "All", sort: { key: "1Y", dir: -1 }, navRange: "S22", gran: "M" };
+const fundType = (f) => f.portfolio?.type || "—";
 function setPressed(group, value) {
   group.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === value)));
 }
@@ -284,11 +281,11 @@ function onSeg(id, fn) {
 const NEEDS = `<span class="badge"><span class="dot"></span>Needs data</span>`;
 
 // ---------- overview ----------
-const COLS = [...WINDOWS.map((w) => ({ key: w.key, label: w.key })), { key: "S", label: `Since ${SINCE_LBL}` }, { key: "SA", label: "Per year" }];
+const COLS = [...WINDOWS.map((w) => ({ key: w.key, label: w.key })), { key: "S22", label: `Since ${SINCE_SHORT}` }, { key: "S22A", label: "Per year" }];
 function metricFor(f, key) {
   const m = f.m; if (!m) return null;
-  if (key === "S") return m.since;
-  if (key === "SA") return m.sinceAnn;
+  if (key === "S22") return m.since;
+  if (key === "S22A") return m.sinceAnn;
   return m.ret[key];
 }
 
@@ -302,25 +299,24 @@ function renderOverview() {
   const app = document.getElementById("app");
   app.innerHTML = `
     <h1>How are my funds doing?</h1>
-    <p class="lede">Daily unit prices (NAV) and returns for ${funds.length} mutual funds (Direct Plan, Growth) since April 2025, plus every stock each fund holds. When the NAV rises, every unit you own is worth more.${latest ? ` Latest price: <strong>${fmtDate(latest)}</strong>.` : ""}</p>
+    <p class="lede">Daily unit prices (NAV) and returns for ${funds.length} Tata AIA Life ULIP funds since ${SINCE_LONG}, plus what each fund holds. When the NAV rises, every unit you own is worth more.${latest ? ` Latest price: <strong>${fmtDate(latest)}</strong>.` : ""}</p>
     ${needs.length || old.length ? `<div class="notice"><span class="icon" aria-hidden="true">!</span><div>
       ${needs.length ? `<strong>${needs.length} of ${funds.length} funds have no price history yet</strong> and are marked ${NEEDS}. Their holdings are still shown. ` : ""}
       ${old.length ? `<strong>${old.length} fund${old.length > 1 ? "s have" : " has"} out-of-date prices.</strong>` : ""}</div></div>` : ""}
     <section class="card">
       <div class="card-head">
         <div><h2>Which funds did best?</h2><p class="muted small">Change in NAV over the chosen period, up to each fund's latest price. Click a fund for details.</p></div>
-        ${seg([...WINDOWS.map((w) => ({ v: w.key, l: w.key })), { v: "S", l: `Since ${SINCE_LBL}` }], state.overviewWindow, "Period").replace('class="seg"', 'class="seg" id="win-seg"')}
+        ${seg([...WINDOWS.map((w) => ({ v: w.key, l: w.key })), { v: "S22", l: "Since '22" }], state.overviewWindow, "Period").replace('class="seg"', 'class="seg" id="win-seg"')}
       </div>
       <div id="cmp" class="cmp"></div>
     </section>
     <section class="card">
       <div class="card-head">
-        <div><h2>All funds at a glance</h2><p class="muted small">Click a column to sort. "Per year" is the average yearly growth since 1 April 2025.</p></div>
+        <div><h2>All funds at a glance</h2><p class="muted small">Click a column to sort. "Per year" is the average yearly growth since ${SINCE_LONG} (or since launch for newer funds).</p></div>
         ${seg(types.map((t) => ({ v: t, l: t })), state.typeFilter, "Fund type").replace('class="seg"', 'class="seg" id="type-seg"')}
       </div>
       <div class="table-scroll"><table id="ov-table"></table></div>
-    </section>
-    ${renderOverlap(funds)}`;
+    </section>`;
 
   const drawCmp = () => {
     const key = state.overviewWindow;
@@ -357,7 +353,7 @@ function renderOverview() {
       <thead><tr>${th("name", "Fund")}${th("nav", "Latest NAV")}${COLS.map((c) => th(c.key, c.label)).join("")}<th scope="col">Last 12 months</th></tr></thead>
       <tbody>${list.map((f) => {
         const m = f.m, has = m && m.points > 1;
-        const meta = `${esc(fundType(f))} · ${esc(f.amc)}`;
+        const meta = `${esc(fundType(f))}${f.portfolio?.risk ? " · " + esc(f.portfolio.risk) + " risk" : ""}`;
         const navCell = m ? `${fmtNav(m.lastNav)}<span class="fund-meta">${fmtDate(m.last)}${m.stale ? " · old" : ""}</span>` : "—";
         let spark = "";
         if (has) { const i = Math.max(0, idxAtOrBefore(f.d, addMonths(m.last, -12))); spark = sparkline(f.d.slice(i), f.v.slice(i)); }
@@ -390,7 +386,7 @@ const RANGES = [
   { v: "6M", l: "6M", from: (last) => addMonths(last, -6) },
   { v: "1Y", l: "1Y", from: (last) => addMonths(last, -12) },
   { v: "3Y", l: "3Y", from: (last) => addMonths(last, -36) },
-  { v: "S", l: `Since ${SINCE_LBL}`, from: () => SINCE },
+  { v: "S22", l: `Since ${SINCE_SHORT}`, from: () => SINCE },
   { v: "ALL", l: "All", from: () => "0000-00-00" },
 ];
 
@@ -403,152 +399,62 @@ function hbars(items) {
     </div>`).join("")}</div>`;
 }
 
-const KIND_LABEL = { equity: "Shares (equity)", debt: "Bonds & debt", cash: "Cash & others", other: "Other" };
-const KIND_COLOR = { equity: "var(--series-1)", debt: "var(--series-2)", cash: "var(--series-3)", other: "var(--series-4)" };
-const equities = (p) => (p?.holdings || []).filter((h) => h.kind === "equity");
-const holdingKey = (h) => h.isin || h.name.toLowerCase();
-
-/** Industry weights summed over every equity holding, biggest first. */
-function sectorsOf(p) {
-  const by = new Map();
-  for (const h of equities(p)) { const k = h.industry || "Unclassified"; by.set(k, (by.get(k) || 0) + (h.pct || 0)); }
-  return [...by].map(([name, pct]) => ({ name, pct })).sort((a, b) => b.pct - a.pct);
-}
-
-/** Overlap of two portfolios: the share of money invested in the same stocks (sum of the smaller weight). */
-function overlapPct(a, b) {
-  const wa = new Map(equities(a).map((h) => [holdingKey(h), h.pct || 0]));
-  let s = 0;
-  for (const h of equities(b)) if (wa.has(holdingKey(h))) s += Math.min(wa.get(holdingKey(h)), h.pct || 0);
-  return s;
-}
-
-/** Month-on-month changes: new stocks, fully sold stocks, biggest weight moves. */
-function portfolioChanges(p, prev) {
-  if (!p || !prev) return null;
-  const before = new Map(equities(prev).map((h) => [holdingKey(h), h]));
-  const now = new Map(equities(p).map((h) => [holdingKey(h), h]));
-  const added = [...now].filter(([k]) => !before.has(k)).map(([, h]) => h).sort((a, b) => b.pct - a.pct);
-  const exited = [...before].filter(([k]) => !now.has(k)).map(([, h]) => h).sort((a, b) => b.pct - a.pct);
-  const moved = [...now].filter(([k]) => before.has(k)).map(([k, h]) => ({ ...h, delta: h.pct - before.get(k).pct }));
-  return {
-    added, exited,
-    up: moved.filter((h) => h.delta >= 0.05).sort((a, b) => b.delta - a.delta).slice(0, 5),
-    down: moved.filter((h) => h.delta <= -0.05).sort((a, b) => a.delta - b.delta).slice(0, 5),
-  };
-}
-
-function changeList(title, items, fmt) {
-  return `<div class="chg"><h4>${title} <span class="muted small">(${items.length})</span></h4>${items.length
-    ? `<ul>${items.slice(0, 8).map((h) => `<li><span>${esc(h.name)}</span><span class="tnum">${fmt(h)}</span></li>`).join("")}${items.length > 8 ? `<li class="muted small">and ${items.length - 8} more</li>` : ""}</ul>`
-    : `<p class="muted small">None</p>`}</div>`;
-}
-
 function renderPortfolio(f) {
   const p = f.portfolio;
-  if (!p) {
-    const manual = f.portfolio_source === "manual";
-    return `<section class="card"><h2>What the fund invests in</h2><p class="muted">${manual
-      ? `${esc(f.amc)} blocks automated downloads of its monthly portfolio, so this fund's holdings are added by hand: download the latest monthly portfolio from ${esc(f.amc)}'s website and save it in the repository as <code>data/import/portfolio/${esc(f.code)}.xlsx</code>.`
-      : "The fund house's monthly portfolio hasn't been collected yet."}</p></section>`;
-  }
-  const mix = Object.entries(p.asset_mix || {}).map(([k, v]) => ({ k: k.replace(/_pct$/, ""), v })).filter((x) => x.v > 0.05);
-  const eq = equities(p), top = eq.slice().sort((a, b) => b.pct - a.pct);
-  const top10 = top.slice(0, 10), top10Sum = top10.reduce((a, h) => a + h.pct, 0);
-  const secs = sectorsOf(p), secTop = secs.slice(0, 10), secRest = secs.slice(10).reduce((a, s) => a + s.pct, 0);
-  const ch = portfolioChanges(p, f.prev_portfolio);
-  const asOf = p.as_of ? fmtDate(p.as_of) : fmtYYYYMM(p.month.replace("-", ""));
-  const sign = (x) => (x > 0 ? "+" : x < 0 ? "−" : "") + Math.abs(x).toFixed(2);
+  if (!p) return `<section class="card"><h2>What the fund invests in</h2><p class="muted">No fact-sheet data published for this fund yet.</p></section>`;
+  const mixParts = [
+    { k: "Shares (equity)", v: p.asset_mix.equity_pct, c: "var(--series-1)" },
+    { k: "Bonds (debt)", v: p.asset_mix.debt_pct, c: "var(--series-2)" },
+    { k: "Cash & money market", v: p.asset_mix.mmi_others_pct, c: "var(--series-3)" },
+  ].filter((x) => x.v);
+  const periods = [["1_month", "1 month"], ["3_months", "3 months"], ["6_months", "6 months"], ["1_year", "1 year"], ["2_years", "2 years"], ["3_years", "3 years"], ["5_years", "5 years"], ["since_inception", "Since launch"]];
+  const bm = p.benchmark_returns || {}, fr = p.returns || {};
+  const retRows = periods.filter(([k]) => fr[k]?.change_pct != null).map(([k, l]) => {
+    const a = fr[k].change_pct / 100, b = bm[k]?.change_pct != null ? bm[k].change_pct / 100 : null;
+    const diff = b == null ? null : a - b;
+    return `<tr><td>${l}</td><td class="num">${pctSpan(a)}</td><td class="num">${b == null ? "—" : pctSpan(b)}</td><td class="num">${diff == null ? "—" : `<span class="${cls(diff)}">${diff >= 0 ? "Ahead" : "Behind"} by ${Math.abs(diff * 100).toFixed(1)} pts</span>`}</td></tr>`;
+  }).join("");
+  const sectors = (p.sectors || []).filter((s) => s.name !== "Others");
+  const others = (p.sectors || []).find((s) => s.name === "Others");
+  const holdingsTotal = (p.holdings || []).reduce((a, h) => a + (h.pct || 0), 0);
   return `
     <h2 style="margin:24px 0 4px">What the fund invests in</h2>
-    <p class="muted small" style="margin:0 0 14px">From ${esc(f.amc)}'s official monthly portfolio as of <strong>${asOf}</strong>${p.source ? ` (<a href="${esc(p.source)}" rel="noopener">source file</a>)` : ""}. ${eq.length} stocks in total.</p>
+    <p class="muted small" style="margin:0 0 14px">From the insurer's fact sheet for ${fmtYYYYMM(p.month)}. Holdings change month to month; the insurer publishes the top 10 positions.</p>
     <section class="card">
       <h3>Where the money goes</h3>
-      <div class="mix" role="img" aria-label="${esc(mix.map((x) => `${KIND_LABEL[x.k] || x.k} ${x.v.toFixed(1)}%`).join(", "))}">${mix.map((x) => `<div style="width:${x.v}%;background:${KIND_COLOR[x.k] || "var(--series-4)"}" title="${esc(KIND_LABEL[x.k] || x.k)}: ${x.v.toFixed(1)}%"></div>`).join("")}</div>
-      <div class="legend">${mix.map((x) => `<span><span class="sw" style="background:${KIND_COLOR[x.k] || "var(--series-4)"}"></span>${esc(KIND_LABEL[x.k] || x.k)} <strong class="tnum">${x.v.toFixed(1)}%</strong></span>`).join("")}</div>
+      <div class="mix" role="img" aria-label="${esc(mixParts.map((x) => `${x.k} ${x.v.toFixed(1)}%`).join(", "))}">${mixParts.map((x) => `<div style="width:${x.v}%;background:${x.c}" title="${esc(x.k)}: ${x.v.toFixed(1)}%"></div>`).join("")}</div>
+      <div class="legend">${mixParts.map((x) => `<span><span class="sw" style="background:${x.c}"></span>${esc(x.k)} <strong class="tnum">${x.v.toFixed(1)}%</strong></span>`).join("")}</div>
     </section>
     <div class="grid-2">
       <section class="card">
-        <h3>Top 10 stocks</h3>
-        <p class="muted small" style="margin:-4px 0 12px">Together ${top10Sum.toFixed(1)}% of the fund.</p>
-        ${top10.length ? hbars(top10) : `<p class="muted">No stocks listed.</p>`}
+        <h3>Top 10 holdings</h3>
+        <p class="muted small" style="margin:-4px 0 12px">Together ${holdingsTotal.toFixed(1)}% of the fund.</p>
+        ${p.holdings?.length ? hbars(p.holdings) : `<p class="muted">Not published.</p>`}
       </section>
       <section class="card">
         <h3>Top sectors</h3>
-        <p class="muted small" style="margin:-4px 0 12px">${secRest > 0 ? `All other sectors: ${secRest.toFixed(1)}%.` : "&nbsp;"}</p>
-        ${secTop.length ? hbars(secTop) : `<p class="muted">No sector data.</p>`}
+        <p class="muted small" style="margin:-4px 0 12px">${others ? `All other sectors: ${others.pct.toFixed(1)}%.` : "&nbsp;"}</p>
+        ${sectors.length ? hbars(sectors) : `<p class="muted">Not published.</p>`}
       </section>
     </div>
-    ${ch ? `<section class="card" style="margin-top:16px">
-      <h3>What changed since ${fmtYYYYMM(f.prev_portfolio.month.replace("-", ""))}</h3>
-      <p class="muted small" style="margin:-4px 0 12px">Changes in each stock's share of the fund. A share can also move because the stock's price moved, not only because the manager bought or sold.</p>
-      <div class="changes">
-        ${changeList("New stocks bought", ch.added, (h) => h.pct.toFixed(2) + "%")}
-        ${changeList("Stocks fully sold", ch.exited, (h) => "was " + h.pct.toFixed(2) + "%")}
-        ${changeList("Biggest increases", ch.up, (h) => sign(h.delta) + " pts")}
-        ${changeList("Biggest decreases", ch.down, (h) => sign(h.delta) + " pts")}
-      </div>
-    </section>` : ""}
-    <section class="card" style="margin-top:16px">
-      <div class="card-head">
-        <div><h3>Every holding</h3><p class="muted small">${p.holdings.length} lines, including bonds and cash. Click a column to sort.</p></div>
-        <input type="search" id="h-search" class="search" placeholder="Find a stock or sector" aria-label="Filter holdings">
-      </div>
-      <div class="table-scroll tall"><table id="h-table"></table></div>
-    </section>
-    <section class="card" style="margin-top:16px">
-      <h3>Fund facts</h3>
-      <dl class="facts">
-        <dt>Category</dt><dd>${esc(f.category)}</dd>
-        <dt>Fund house</dt><dd>${esc(f.amc)} Mutual Fund</dd>
-        <dt>Plan</dt><dd>Direct Plan · Growth option</dd>
-        <dt>Fund size</dt><dd class="tnum">${p.aum_cr ? "₹" + Math.round(p.aum_cr).toLocaleString("en-IN") + " crore" : "—"}</dd>
-        <dt>AMFI scheme code</dt><dd class="tnum">${esc(f.scheme_code)}</dd>
-        <dt>ISIN</dt><dd>${esc(f.isin)}</dd>
-        <dt>NAV history from</dt><dd>${fmtDate(f.launch)}</dd>
-      </dl>
-    </section>`;
-}
-
-function bindHoldingsTable(f) {
-  const p = f.portfolio; if (!p) return;
-  const prevW = new Map(equities(f.prev_portfolio).map((h) => [holdingKey(h), h.pct]));
-  const hasPrev = !!f.prev_portfolio;
-  let sort = { k: "pct", dir: -1 }, q = "";
-  const rows = p.holdings.map((h) => ({ ...h, delta: h.kind === "equity" && hasPrev ? (prevW.has(holdingKey(h)) ? h.pct - prevW.get(holdingKey(h)) : null) : undefined }));
-  const draw = () => {
-    const ql = q.trim().toLowerCase();
-    const list = rows.filter((h) => !ql || h.name.toLowerCase().includes(ql) || (h.industry || "").toLowerCase().includes(ql));
-    list.sort((a, b) => sort.k === "pct" ? sort.dir * (a.pct - b.pct) : sort.k === "delta" ? sort.dir * ((a.delta ?? -99) - (b.delta ?? -99)) : sort.dir * String(a[sort.k] || "").localeCompare(String(b[sort.k] || "")));
-    const th = (k, l) => `<th class="sortable" data-k="${k}" scope="col" ${sort.k === k ? `aria-sort="${sort.dir > 0 ? "ascending" : "descending"}"` : ""}>${l}${sort.k === k ? (sort.dir > 0 ? " ↑" : " ↓") : ""}</th>`;
-    const dcell = (h) => h.delta === undefined ? "" : h.delta === null ? `<span class="badge">New</span>` : `<span class="${cls(h.delta / 100, 2)}">${(h.delta > 0 ? "+" : h.delta < 0 ? "−" : "") + Math.abs(h.delta).toFixed(2)}</span>`;
-    document.getElementById("h-table").innerHTML = `<thead><tr>${th("name", "Holding")}${th("industry", "Sector")}${th("pct", "% of fund")}${hasPrev ? th("delta", "Change (pts)") : ""}</tr></thead>
-      <tbody>${list.map((h) => `<tr><td>${esc(h.name)}${h.kind !== "equity" ? ` <span class="muted small">· ${esc(KIND_LABEL[h.kind] || h.kind)}</span>` : ""}</td><td>${esc(h.industry || "—")}</td><td class="num">${h.pct.toFixed(2)}%</td>${hasPrev ? `<td class="num">${dcell(h)}</td>` : ""}</tr>`).join("") || `<tr><td colspan="4" class="muted">No match.</td></tr>`}</tbody>`;
-  };
-  draw();
-  document.getElementById("h-search").addEventListener("input", (e) => { q = e.target.value; draw(); });
-  document.getElementById("h-table").addEventListener("click", (e) => {
-    const h = e.target.closest("th.sortable"); if (!h) return;
-    const k = h.dataset.k; sort = { k, dir: sort.k === k ? -sort.dir : k === "pct" || k === "delta" ? -1 : 1 }; draw();
-  });
-}
-
-/** Overview card: how much of each pair of funds is invested in the same stocks. */
-function renderOverlap(funds) {
-  const list = funds.filter((f) => f.portfolio && equities(f.portfolio).length);
-  if (list.length < 2) return "";
-  const missing = funds.filter((f) => !list.includes(f));
-  const head = list.map((f) => `<th scope="col" title="${esc(f.name)}">${esc(f.short || f.code)}</th>`).join("");
-  const body = list.map((a) => `<tr><th scope="row">${esc(a.name)}</th>${list.map((b) => {
-    if (a === b) return `<td class="ov-cell self">—</td>`;
-    const o = overlapPct(a.portfolio, b.portfolio);
-    return `<td class="ov-cell" style="--o:${Math.min(1, o / 60).toFixed(2)}" title="${esc(a.name)} and ${esc(b.name)}: ${o.toFixed(1)}% of their money is in the same stocks">${o.toFixed(0)}%</td>`;
-  }).join("")}</tr>`).join("");
-  return `<section class="card">
-    <h2>Do my funds own the same stocks?</h2>
-    <p class="muted small" style="margin:0 0 12px">Portfolio overlap from the latest monthly holdings: the share of money two funds have in the same stocks. Above about 40%, owning both adds little variety.${missing.length ? ` Not shown yet (no holdings on file): ${missing.map((f) => esc(f.short || f.name)).join(", ")}.` : ""}</p>
-    <div class="table-scroll"><table class="overlap"><thead><tr><th></th>${head}</tr></thead><tbody>${body}</tbody></table></div>
-  </section>`;
+    <div class="grid-2" style="margin-top:16px">
+      <section class="card">
+        <h3>Fund vs its benchmark</h3>
+        <p class="muted small" style="margin:-4px 0 10px">Official returns to the end of ${fmtYYYYMM(p.month)}, compared with ${esc(p.benchmark || "its benchmark index")}.</p>
+        ${retRows ? `<div class="table-scroll"><table><thead><tr><th>Period</th><th>Fund</th><th>Benchmark</th><th>Difference</th></tr></thead><tbody>${retRows}</tbody></table></div>` : `<p class="muted">Not published.</p>`}
+      </section>
+      <section class="card">
+        <h3>Fund facts</h3>
+        <dl class="facts">
+          <dt>Type</dt><dd>${esc(p.type || "—")}</dd>
+          <dt>Risk level</dt><dd>${esc(p.risk || "—")}</dd>
+          <dt>Fund size</dt><dd class="tnum">${p.aum_cr ? "₹" + Math.round(p.aum_cr).toLocaleString("en-IN") + " crore" : "—"}</dd>
+          <dt>Fund manager</dt><dd>${esc(p.manager || "—")}</dd>
+          <dt>Fund code</dt><dd>${esc(f.sfin)}</dd>
+        </dl>
+        ${p.objective ? `<details><summary>What is this fund trying to do?</summary><p class="small">${esc(p.objective.replace(/\?s\b/g, "'s"))}</p></details>` : ""}
+      </section>
+    </div>`;
 }
 
 function renderFund(code) {
@@ -556,7 +462,7 @@ function renderFund(code) {
   const app = document.getElementById("app");
   if (!f) { app.innerHTML = `<a class="back" href="#/">← All funds</a><p>Fund not found.</p>`; return; }
   const m = f.m, p = f.portfolio;
-  const chips = [f.category, `${f.amc} Mutual Fund`, "Direct · Growth"];
+  const chips = [p?.type, p?.risk && `${p.risk} risk`, p?.benchmark && `Benchmark: ${p.benchmark}`].filter(Boolean);
   let html = `<a class="back" href="#/">← All funds</a>
     <h1 class="fund-title">${esc(f.name)}</h1>
     <div class="chips">${chips.map((c) => `<span class="badge">${esc(c)}</span>`).join("")}</div>`;
@@ -564,7 +470,6 @@ function renderFund(code) {
   if (!m || m.points < 2) {
     html += `<div class="notice"><span class="icon" aria-hidden="true">!</span><div><strong>No price history for this fund yet.</strong> ${m ? `Only one NAV is on file: ${fmtNav(m.lastNav)} on ${fmtDate(m.last)}.` : ""} Returns appear once its NAV history is added.</div></div>`;
     app.innerHTML = html + renderPortfolio(f);
-    bindHoldingsTable(f);
     return;
   }
 
@@ -590,7 +495,7 @@ function renderFund(code) {
       <p class="muted small" style="margin:0 0 12px">How much the NAV changed over each period ending on the latest price.</p>
       <div class="returns">
         ${WINDOWS.map((w) => `<div class="ret"><div class="p">${w.label}</div><div class="r">${pctSpan(m.ret[w.key])}</div><div class="a">&nbsp;</div></div>`).join("")}
-        <div class="ret"><div class="p">${s.launched ? "Since launch" : `Since ${SINCE_LBL}`}</div><div class="r">${pctSpan(m.since)}</div><div class="a">${m.sinceAnn != null ? fmtPct(m.sinceAnn) + " a year" : "&nbsp;"}</div></div>
+        <div class="ret"><div class="p">${s.launched ? "Since launch" : `Since ${SINCE_SHORT}`}</div><div class="r">${pctSpan(m.since)}</div><div class="a">${m.sinceAnn != null ? fmtPct(m.sinceAnn) + " a year" : "&nbsp;"}</div></div>
       </div>
     </section>
     <section class="card">
@@ -604,7 +509,6 @@ function renderFund(code) {
       <details><summary>Show as a table</summary><div class="table-scroll" style="margin-top:8px"><table id="gran-table"></table></div></details>
     </section>`;
   app.innerHTML = html + renderPortfolio(f);
-  bindHoldingsTable(f);
 
   const drawNav = () => {
     const r = RANGES.find((x) => x.v === state.navRange);
