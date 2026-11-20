@@ -1,48 +1,48 @@
 {
-  "run_at": "2026-11-17T10:17:51+00:00",
+  "run_at": "2026-11-20T11:17:08+00:00",
   "errors": [],
-  "amfi_nav_date": "2026-11-16",
+  "amfi_nav_date": "2026-11-19",
   "funds": {
     "ICIINF": {
       "first": "2013-01-02",
-      "last": "2026-11-16",
-      "points": 3413,
+      "last": "2026-11-19",
+      "points": 3416,
       "stale": false
     },
     "BANSC": {
       "first": "2020-02-26",
-      "last": "2026-11-16",
-      "points": 1666,
+      "last": "2026-11-19",
+      "points": 1669,
       "stale": false
     },
     "NIPMID": {
       "first": "2013-01-02",
-      "last": "2026-11-16",
-      "points": 3413,
+      "last": "2026-11-19",
+      "points": 3416,
       "stale": false
     },
     "HDFMID": {
       "first": "2013-01-01",
-      "last": "2026-11-16",
-      "points": 3414,
+      "last": "2026-11-19",
+      "points": 3417,
       "stale": false
     },
     "MOSMID": {
       "first": "2014-02-25",
-      "last": "2026-11-16",
-      "points": 3127,
+      "last": "2026-11-19",
+      "points": 3130,
       "stale": false
     },
     "ICILC": {
       "first": "2013-01-02",
-      "last": "2026-11-16",
-      "points": 3413,
+      "last": "2026-11-19",
+      "points": 3416,
       "stale": false
     },
     "NIPLC": {
       "first": "2013-01-02",
-      "last": "2026-11-16",
-      "points": 3413,
+      "last": "2026-11-19",
+      "points": 3416,
       "stale": false
     }
   },
