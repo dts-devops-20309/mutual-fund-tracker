@@ -2,15 +2,16 @@ name: Fetch fund data (nightly)
 
 on:
   schedule:
-    # 20:30 UTC = 02:00 IST, after Tata AIA publishes the day's NAVs.
-    - cron: "30 20 * * *"
+    # 18:30 UTC = 00:00 IST. AMFI publishes the day's NAVs by about 23:00 IST.
+    - cron: "30 18 * * *"
   workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - "data/import/**"
       - "funds.json"
       - "scripts/**"
+      - "requirements.txt"
+      - "data/import/**"
 
 permissions:
   contents: write
@@ -22,30 +23,37 @@ concurrency:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-
+    timeout-minutes: 20
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v5
 
-      - name: Setup Python
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+          cache: pip
 
-      - name: Import manual CSV backfills (if any)
-        run: python scripts/import_csv.py
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
-      - name: Fetch latest NAV and monthly fund details
-        run: python scripts/fetch.py
+      - name: Fetch daily NAVs (AMFI + mfapi.in)
+        run: python scripts/fetch_nav.py
+
+      - name: Fetch monthly portfolios (fund house disclosures)
+        # One fund house being down must not block the NAV commit.
+        continue-on-error: true
+        run: python scripts/fetch_portfolio.py
 
       - name: Summary
         if: always()
         run: |
           {
-            echo "### Fund data fetch"
+            echo "### NAV"
             echo '```json'
-            cat data/status.json 2>/dev/null || echo '{}'
+            cat data/nav_status.json 2>/dev/null || echo '{}'
+            echo '```'
+            echo "### Portfolios"
+            echo '```json'
+            cat data/portfolio_status.json 2>/dev/null || echo '{}'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
